@@ -1,0 +1,631 @@
+---
+title: "InitialDataAnalysis"
+author: Victoria Moulds
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+```
+
+## Overview
+
+This document shows the inital steps carried out for exploratory data analysis of the stackoverflow annual developer survey dataset to assess whether this data would be useful for my data mining project.  I wanted a real world dataset that would allow me to use the techniques I have been taught in my post-graduate AI data mining model which include:
+
+    Handling missing data
+    Feature selection and engineering
+    Modeling and evaluation techniques
+
+The datasets used in this document can be found at the link below:
+
+https://insights.stackoverflow.com/survey/
+
+This stackoverflow developer survey dataset dataset represents 10 years (2011-2020) of surveys that aims to examine all aspects of the developer experience from career satisfaction and job search to education and opinions on open source software.
+
+I would like to use this data to try and assess job satisfcation in the developer community to better understand what factors impact job satisfaction as well as seeing if there are any variations in these factors over time.
+
+
+## Step 1: Get the data
+
+### 1.a - 2011 Data Set
+
+```{r 2011 Data}
+
+read_data_and_print_summary_info <- function(file_name){
+    raw_data <- read_csv(file_name)
+
+    print("Data dimensions:")
+    print(dim(raw_data))
+    
+    print("Structure Data:")
+    print(str(raw_data))
+    
+    return(raw_data)
+}
+
+data_file_2011 = '../datasets/raw/2011_Survey_Results.csv'
+raw_data_2011 <- read_data_and_print_summary_info(data_file_2011)
+```
+#### 2011 Data Thoughts
+
+There are 2814 rows and 65 columns of data for 2011.
+The columns with no names need tidied up as they refer to options of questions.
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age
+    * Years of experience 
+    * Profession / Occupation
+    * Size of company
+    * Project work
+    * Programming languages used 
+    * OS used 
+    * Salary 
+    * Tech products own 
+    * Purchasing involvement in work 
+    * Job Satisfaction
+    
+### 1.b - 2012 Data Set
+
+```{r 2012 Data}
+
+data_file_2012 = '../datasets/raw/2012_Survey_Results.csv'
+raw_data_2012 <- read_data_and_print_summary_info(data_file_2012)
+```
+
+#### 2012 Data Thoughts
+
+There are 6244 rows and 75 columns of data for 2012
+The columns with no names need tidied up as they refer to options of questions.
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age
+    * Years of experience 
+    * Profession / Occupation
+    * Size of company
+    * Project work
+    * Programming languages used 
+    * OS used 
+    * Salary 
+    * Tech products own 
+    * Purchasing involvement in work 
+    * Stackoverflow job profile questions
+    * Job Satisfaction
+
+Survey is similar to 2011 but with a few more questions added
+
+### 1.c - 2013 Data Set
+
+```{r 2013 Data}
+
+data_file_2013 = '../datasets/raw/2013_Survey_Results.csv'
+raw_data_2013 <- read_data_and_print_summary_info(data_file_2013)
+```
+
+#### 2013 Data Thoughts
+
+There are 9743 rows and 128 columns of data for 2013
+The columns with no names need tidied up as they refer to options of questions.
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age
+    * Years of experience 
+    * Profession / Occupation
+    * Size of company
+        - Number of developers employed in company 
+    * Project work
+        - Size of team
+        - Departments work with 
+        - Weekly work 
+    * Programming languages used 
+    * Programming languages excited about
+    * OS used 
+    * Salary 
+    * Tech products own 
+    * Purchasing involvement in work 
+    * Career questions
+        - Important items for working for a company
+        - Change of job in last year
+    * Stackoverflow questions 
+    * Job Satisfaction
+
+Survey is similar to 2011 and 2012 but with a few more questions added around what person deems important for a job / company and whether they changed jobs in the last year or not.
+
+### 1.d - 2014 Data Set
+
+```{r 2014 Data}
+
+data_file_2014 = '../datasets/raw/2014_Survey_Results.csv'
+raw_data_2014 <- read_data_and_print_summary_info(data_file_2014)
+```
+
+#### 2014 Data Thoughts
+
+There are 7644 rows and 120 columns of data for 2014
+The columns with no names need tidied up as they refer to options of questions.
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age
+    * Gender
+    * Years of experience 
+    * Profession / Occupation
+    * Number of developers employed in company 
+    * Remote working
+    * Project work
+        - Size of team
+        - Departments work with 
+        - Weekly work 
+    * Programming languages used 
+    * Programming languages excited about
+    * OS used 
+    * Salary 
+    * Tech products own 
+    * Purchasing involvement in work 
+    * Career questions
+        - Change of job in last year
+        - Job opportunities 
+    * Stackoverflow questions 
+    * Job Satisfaction
+
+Survey is similar to 2011, 2012 and 2013 but with a few more questions added around gender and remote working.  In this survey there are no questions about overall company size or what attributes the person rates important for a job / company.
+
+### 1.e - 2015 Data Set
+
+```{r 2015 Data}
+
+data_file_2015 = '../datasets/raw/2015_Survey_Results.csv'
+raw_data_2015 <- read_data_and_print_summary_info(data_file_2015)
+```
+
+#### 2015 Data Thoughts
+
+There are 26087 rows and 222 columns of data for 2015
+All the columns have no names and it looks like the first row of data refers to the column name so need to tidy up column headers if using this data.
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age
+    * Gender
+    * Years of experience 
+    * Profession / Occupation
+    * Programming languages used 
+    * Programming languages future 
+    * Development related questions 
+        - Favorite IDE 
+        - Favorite text editor 
+        - Source control
+    * OS used 
+    * Salary 
+    * Purchasing involvement in work 
+    * Career questions
+        - Employment status
+        - Important aspects for new job
+        - Annoying aspect of job searches
+        - Improvements for job process 
+        - Change of job in last year
+    * Training and Education 
+    * Job Satisfaction
+
+Survey is quite different to previous surveys.  There is a lot more focus on tools developer is using as well as education and job search related questions such as source control being used, improvements for job process. 
+
+
+### 1.f - 2016 Data Set
+
+```{r 2016 Data}
+
+data_file_2016 = '../datasets/raw/2016_Survey_Results.csv'
+raw_data_2016 <- read_data_and_print_summary_info(data_file_2016)
+```
+
+#### 2016 Data Thoughts
+
+There are 56030 rows and 66 columns of data for 2016.
+This shows a lot more people have completed this survey compared to previous years.
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age Range
+    * Gender
+    * Years of experience (range)
+    * Profession / Occupation
+    * Identification i.e. do you identify as developer / software engineer
+    * Company size
+    * Project work
+        - Team size
+        - No. women on team 
+        - Remote working
+    * OS use
+    * Tech used 
+    * Tech excited about
+    * Coding as Hobby
+    * Salary (range)
+    * Job / Career
+        - Open to new job 
+        - Values looking for in new job 
+    * Education 
+    * Job Satisfaction
+
+Survey has some similarities to prior surveys though there are differences.
+
+### 1.g - 2017 Data Set
+
+```{r 2017 Data}
+
+data_file_2017 = '../datasets/raw/2017_Survey_Results.csv'
+raw_data_2017 <- read_data_and_print_summary_info(data_file_2017)
+```
+
+#### 2017 Data Thoughts
+
+There are 51392 rows and 154 columns of data for 2017
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Gender
+    * Years of experience 
+    * Profession / Occupation
+    * Size of company
+    * Job security 
+    * Project work
+        - Hours work per week 
+        - Remote working 
+        - Equipement satisfaction 
+    * Personality questions 
+        - Excode 
+        - Learning new tech 
+        - Diversity important 
+        - Friends that are developers 
+    * Development questions 
+        - Framework used 
+        - Framework want to use 
+        - Database use 
+        - Database want to use 
+        - Platform use 
+        - Platform want to use 
+        - Methodology 
+        - IDE 
+        - Code check in 
+        - Debugging enjoyment 
+    * Programming languages used 
+    * Programming languages want to use 
+    * Salary 
+    * Career questions
+        - Job seeking status 
+        - Last new job
+        - Assess job / company 
+        - Important hiring 
+    * Education 
+    * Influence have questions
+    * Stackoverflow questions 
+    * Job Satisfaction
+
+Similarities to other years such as country, size of company, occupation, job statisfaction, what tech they are currently using and what they want to use. However, there are a lot of new questions this year around what person deems important and how they work.
+
+### 1.h - 2018 Data Set
+
+```{r 2018 Data}
+
+data_file_2018 = '../datasets/raw/2018_Survey_Results.csv'
+raw_data_2018 <- read_data_and_print_summary_info(data_file_2018)
+```
+
+#### 2018 Data Thoughts
+
+There are 98855 rows and 129 columns of data for 2018
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age
+    * Gender
+    * Ethnicity
+    * Years of experience 
+    * Profession / Occupation
+    * Size of company
+    * Development work / work environment 
+        - Framework used 
+        - Framework want to use 
+        - Database use 
+        - Database want to use 
+        - Platform use 
+        - Platform want to use 
+        - IDE
+        - Methodology
+        - Version control
+        - Code check in 
+        - No. monitors 
+        - Hours Computer 
+        - Hours outside 
+        - Skip meals 
+        - Wake up time 
+        - Ergonomic Devices
+    * Programming languages used 
+    * Programming languages like to use 
+    * OS used 
+    * Salary 
+    * Career questions
+        - Hope for in 5 year
+        - Job search status
+        - Last new job 
+        - Assess job
+        - Assess benefits
+        - Update CV
+    * Education 
+    * AI questions
+    * Ethics questions 
+    * ADs questions
+    * Stackoverflow questions 
+    * Job Satisfaction
+
+Survey is similar to 2017 but with new questions on AI, ethics and advertisements.  
+
+### 1.i - 2019 Data Set
+
+```{r 2019 Data}
+
+data_file_2019 = '../datasets/raw/2019_Survey_Results.csv'
+raw_data_2019 <- read_data_and_print_summary_info(data_file_2019)
+```
+
+#### 2019 Data Thoughts
+
+There are 88883 rows and 85 columns of data for 2019
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age
+    * Gender
+    * Ethnicity
+    * Sexuality 
+    * Years of experience 
+    * Profession / Occupation
+    * Size of company
+    * Development work / work environment 
+        - Framework used 
+        - Framework want to use 
+        - Database use 
+        - Database want to use 
+        - Platform use 
+        - Platform want to use 
+        - Misc tech use
+        - Misc tech want to use
+        - Code reviews 
+        - Unit tests
+        - Work location 
+        - Work remote
+        - Work week hours 
+        - Manager thoughts
+    * Programming languages used 
+    * Programming languages excited about
+    * OS used 
+    * Purchasing involvement in work 
+    * Career questions
+        - Job seeker
+        - Last hire data 
+        - Important job factors
+        - Resume update
+    * Stackoverflow questions 
+    * Job Satisfaction
+
+Survey is similar to 2017 and 2018 with questions around how the person works - what technology they are using and what they want to use, hours worked, screen time etc. 
+
+### 1.j - 2020 Data Set
+
+```{r 2020 Data}
+
+data_file_2020 = '../datasets/raw/2020_Survey_Results.csv'
+raw_data_2020 <- read_data_and_print_summary_info(data_file_2020)
+```
+#### 2020 Data Thoughts
+
+There are 64461 rows and 61 columns of data for 2020
+There is also some null data rows that will need removed and other empty data that will need handled appropriately.
+The survey includes the following data:
+    * Country 
+    * Age
+    * Gender 
+    * Ethnicity
+    * Sexuality
+    * Years of experience 
+    * Profession / Occupation
+    * Size of company
+    * Development work / work environment 
+        - WebFramework used 
+        - WebFramework want to use 
+        - Database use 
+        - Database want to use 
+        - Platform use 
+        - Platform want to use 
+        - Misc tech use
+        - Misc tech want to use
+        - Collab tools use 
+        - Collab tools want to use
+        - Overtime 
+        - Work week hours 
+        - Welcome change
+    * Programming languages used 
+    * Programming languages excited about
+    * OS used 
+    * Salary 
+    * Purchasing involvement in work 
+    * Career questions
+        - Job seeking 
+        - Job factors important
+        - Job hunting
+    * Education level
+    * Stackoverflow questions 
+    * Job Satisfaction
+
+Survey is similar to 2017, 2018 and 2019 with questions on current tech developer is using versus tech they want to use. There is a reduction in questions this year compared to 2017, 2018 and 2019.
+
+
+## Step 2: Response Varaible 
+
+I am interested in look at job satisfaction so I want to see how that varies across the 10 surveys. 
+I am excluding 2014 as the survey from this year does not contain a job satisfaction question.
+I am excluding 2015 as this data needs tidied up as column header has not been read in correctly.
+
+```{r Response}
+response_2011 <- raw_data_2011$`Please rate your job/career satisfaction`
+response_2012 <- raw_data_2012$`What best describes your career / job satisfaction?`
+response_2013 <- raw_data_2013$`What best describes your career / job satisfaction?`
+response_2016 <- raw_data_2016$job_satisfaction
+response_2017 <- raw_data_2017$JobSatisfaction
+response_2018 <- raw_data_2018$JobSatisfaction
+response_2019 <- raw_data_2019$JobSat
+response_2020 <- raw_data_2020$JobSat
+
+print('2011 Satisfaction categories:')
+print(unique(response_2011))
+
+print('2012 Satisfaction categories:')
+print(unique(response_2012))
+
+print('2013 Satisfaction categories:')
+print(unique(response_2013))
+
+print('2016 Satisfaction categories:')
+print(unique(response_2016))
+
+print('2017 Satisfaction categories:')
+print(unique(response_2017))
+
+print('2018 Satisfaction categories:')
+print(unique(response_2018))
+
+print('2019 Satisfaction categories:')
+print(unique(response_2019))
+
+print('2020 Satisfaction categories:')
+print(unique(response_2020))
+
+```
+
+#### Response Variable Thoughts 
+
+Can see that the categories for the response variables changes over the years. 
+
+Therefore if I want to combine the years together and treat them as one dataset I would need to come up with common categories and move the data to those categories
+
+## Step 3: Visualise Response Variable Across Years 
+
+### 3.a Bar Plot Showing Variation in job satisfaction for 2011 
+
+```{r Response}
+raw_data_2011$`Please rate your job/career satisfaction` <- gsub("I enjoy going to work", "Enjoy Work", raw_data_2011$`Please rate your job/career satisfaction`)
+raw_data_2011$`Please rate your job/career satisfaction` <- gsub("I'm not happy in my job", "Not Happy", raw_data_2011$`Please rate your job/career satisfaction`)
+raw_data_2011$`Please rate your job/career satisfaction` <- gsub("It pays the bills", "Pays Bills", raw_data_2011$`Please rate your job/career satisfaction`)
+raw_data_2011$`Please rate your job/career satisfaction` <- gsub("So happy it hurts", "Very Happy", raw_data_2011$`Please rate your job/career satisfaction`)
+
+ggplot(raw_data_2011) + geom_bar(aes(x = `Please rate your job/career satisfaction`)) 
+
+#+ theme(axis.text.x = element_text(face="plain", color="black", size=11, angle=45))
+```
+
+### 3.b Bar Plot Showing Variation in job satisfaction for 2012
+
+```{r Response}
+raw_data_2012$`What best describes your career / job satisfaction?` <- gsub("I enjoy going to work", "Enjoy Work", raw_data_2012$`What best describes your career / job satisfaction?`)
+raw_data_2012$`What best describes your career / job satisfaction?` <- gsub("I'm not happy in my job", "Not Happy", raw_data_2012$`What best describes your career / job satisfaction?`)
+raw_data_2012$`What best describes your career / job satisfaction?` <- gsub("I wish I had a job!", "No Job", raw_data_2012$`What best describes your career / job satisfaction?`)
+raw_data_2012$`What best describes your career / job satisfaction?` <- gsub("Its a paycheck", "Pays Bills", raw_data_2012$`What best describes your career / job satisfaction?`)
+
+ggplot(raw_data_2012) + geom_bar(aes(x = `What best describes your career / job satisfaction?`)) 
+
+```
+
+### 3.c Bar Plot Showing Variation in job satisfaction for 2013
+
+```{r Response}
+raw_data_2013$`What best describes your career / job satisfaction?` <- gsub("I enjoy going to work", "Enjoy Work", raw_data_2013$`What best describes your career / job satisfaction?`)
+raw_data_2013$`What best describes your career / job satisfaction?` <- gsub("I'm not happy in my job", "Not Happy", raw_data_2013$`What best describes your career / job satisfaction?`)
+raw_data_2013$`What best describes your career / job satisfaction?` <- gsub("I wish I had a job!", "No Job", raw_data_2013$`What best describes your career / job satisfaction?`)
+raw_data_2013$`What best describes your career / job satisfaction?` <- gsub("Its a paycheck", "Pays Bills", raw_data_2013$`What best describes your career / job satisfaction?`)
+
+ggplot(raw_data_2013) + geom_bar(aes(x = `What best describes your career / job satisfaction?`)) 
+
+```
+
+### 3.d Bar Plot Showing Variation in job satisfaction for 2016
+
+```{r Response}
+raw_data_2016$job_satisfaction <- gsub("I love my job", "Love Work", raw_data_2016$job_satisfaction)
+raw_data_2016$job_satisfaction <- gsub("I don't have a job", "No Job", raw_data_2016$job_satisfaction)
+raw_data_2016$job_satisfaction <- gsub("I'm somewhat satisfied with my job", "Enjoy Work", raw_data_2016$job_satisfaction)
+raw_data_2016$job_satisfaction <- gsub("I'm somewhat dissatisfied with my job", "Not Happy", raw_data_2016$job_satisfaction)
+raw_data_2016$job_satisfaction <- gsub("I'm neither satisfied nor dissatisfied", "Neutral", raw_data_2016$job_satisfaction)
+raw_data_2016$job_satisfaction <- gsub("I hate my job", "Hate Job", raw_data_2016$job_satisfaction)
+raw_data_2016$job_satisfaction <- gsub("Other (please specify)", "Other", raw_data_2016$job_satisfaction)
+
+ggplot(raw_data_2016) + geom_bar(aes(x = job_satisfaction))
+
+```
+
+### 3.e Plot Showing Variation in job satisfaction for 2017
+
+```{r Response}
+ggplot(raw_data_2017) + geom_bar(aes(x = JobSatisfaction), width=0.4, position = position_dodge(width=0.5)) + theme(axis.text.x = element_text(face="plain", color="black", size=11, angle=45))
+
+```
+
+### 3.f Bar Plot Showing Variation in job satisfaction for 2018
+
+```{r Response}
+raw_data_2018$JobSatisfaction <- gsub("Neither satisfied nor dissatisfied", "Neutral", raw_data_2018$JobSatisfaction)
+
+ggplot(raw_data_2018) + geom_bar(aes(x = JobSatisfaction), width=0.4, position = position_dodge(width=0.5)) + theme(axis.text.x = element_text(face="plain", color="black", size=11, angle=45))
+
+```
+
+### 3.g Bar Plot Showing Variation in job satisfaction for 2019
+
+```{r Response}
+raw_data_2019$JobSat <- gsub("Neither satisfied nor dissatisfied", "Neutral", raw_data_2019$JobSat)
+
+ggplot(raw_data_2019) + geom_bar(aes(x = JobSat), width=0.4, position = position_dodge(width=0.5)) + theme(axis.text.x = element_text(face="plain", color="black", size=11, angle=45))
+
+```
+
+### 3.h Bar Plot Showing Variation in job satisfaction for 2020
+
+```{r Response}
+raw_data_2020$JobSat <- gsub("Neither satisfied nor dissatisfied", "Neutral", raw_data_2020$JobSat)
+
+ggplot(raw_data_2020) + geom_bar(aes(x = JobSat), width=0.4, position = position_dodge(width=0.5)) + theme(axis.text.x = element_text(face="plain", color="black", size=11, angle=45))
+
+```
+
+## Step 4: Summary 
+
+Looking at the above datasets can see that there has been a lot of changes over the years in the survey questions and how the data has been formatted. This will pose a challenge when trying to combine all the years togther into one large dataset as will need to ensure columns are matched up correctly across the years and remove data that isn't applicable.  There are also variations in the categories for the questions across the years so again would need to account for this if looking to combine data.
+
+The survey from 2014 can't be used when looking at job satisfaction as there is no variable to capture that information in that survey.
+
+Variables that are available in all years (excluding 2014) are:
+
+    * Country
+    * Years of experience 
+    * Profession / Occupation 
+    * Programming languages used 
+    * OS used 
+    * Salary 
+    * Job satisfaction 
+    
+The 2011 - 2013 surveys are similar with their questions and format.  
+The 2015 survey is different to all other surveys as the columns aren't being read in correctly and there are a lot more variables that year compared to any other year.
+The 2017 - 2020 surveys are similar with their questions and format though there still are variations in the questions and response categories acorss those years. 
+
+Job satisfaction is a multivariate categorical variable and looking at counts can see there is a class imbalance with more people tending to be satisfied / happy compared to disatisfied and unhappy.
+    
+## Step 4: Next Steps 
+
+I am going to look at each year individually first to clean the data up and determine what features are important for job satisfaction based on the survey data for that year.
+
+Once, I have assessed each individual year then I will look to assess the data over the entire 10 years.
+

@@ -1,0 +1,441 @@
+---
+title: "2020_Survey_DataAnalysis"
+author: Victoria Moulds
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(Amelia)
+library(mlbench)
+library(hablar)
+require(maps)
+require(viridis)
+library(GGally)
+library(mlr3viz)
+library(mlr3learners)
+library(mlr3filters)
+library(praznik)
+library(FSelectorRcpp)
+library(mlr3)
+library(e1071)
+library(ggpubr)
+theme_set(
+  theme_void()
+  )
+```
+
+## Overview
+
+This document shows the inital steps carried out for exploratory data analysis of the 2020 stackoverflow annual developer survey dataset. The 2020 survey examined all aspects of the developer experience from career satisfaction and job search to education and opinions on open source software.
+
+I would like to use this data to try and assess what factors impact job satisfcation in the developer community in 2020.
+
+The datasets used in this document can be found at the link below:
+
+https://insights.stackoverflow.com/survey/
+
+
+## Step 1: Get the data
+
+```{r 2020 Data echo=FALSE}
+
+data_file_2020 = '../datasets/raw/2020_Survey_Results.csv'
+raw_data_2020 <- raw_data <- read_csv(data_file_2020)
+
+dim(raw_data_2020)
+```
+
+## Step 2: Data Summary
+
+There are a lot of character variables so converting them to factor so can get summary information out about them.
+Also noticed that Age1stCode is character but it should be numeric
+
+```{r 2020_summary}
+
+print("Data summary:")
+data_2020_data_type_convert <- raw_data_2020 %>% mutate_if(is.character, as.factor)
+print(summary(data_2020_data_type_convert))
+```
+
+### Summary Thoughts
+
+There are a lot of missing values so will need to clean up data to handle the missing values.  
+
+The job satisfaction variable which is the response variable has 19267 missing values.  I could exclude this data from initial analysis and model building then once I've built and validated a model I could use it on these missing values.
+
+Looking at the numeric variables there are a few anomalies as noted below:
+
+Age max is 279 years which is invalid 
+CompTotal which refres to salary has an invalid max value that is to the power of 247 
+WorkWeekHrs max is 475 hrs which is impossible as there are a total of 168 hours in a week. 
+
+
+## Step 3: Initial Clean Data  
+
+### 3.a: Rename some columns 
+
+Renaming some comlumns so that it's clearer what they refer to:
+
+CompFreq          --->   PayFrequency 
+CompTotal         --->   Salary
+ConvertedComp     --->   SalaryUSD
+
+```{r column_rename}
+old_col_names = c('CompFreq', 'CompTotal', 'ConvertedComp')
+new_col_names = c('PayFrequency', 'Salary', 'SalaryUSD')
+setnames(data_2020_data_type_convert, old = old_col_names, new = new_col_names)
+
+```
+
+
+### 3.b: Missing Data 
+
+Determine which columns have missing data after removing all the rows where the response variable job satisfaction is NA. 
+
+```{r missing_data}
+
+data_2020_jobsat_na_dropped <- data_2020_data_type_convert %>% drop_na(JobSat) 
+print(dim(data_2020_jobsat_na_dropped))
+colSums(is.na(data_2020_jobsat_na_dropped))
+
+
+```
+ 
+ Counting the number of rows that have more than 1 column of missing data (e.g. 50% of their data is missing)
+
+
+```{r missing_data_in_rows}
+
+rows_na_over_40 <- data_2020_jobsat_na_dropped[rowSums(is.na(data_2020_jobsat_na_dropped)) > 40,]
+print(dim(rows_na_over_40))
+
+rows_na_over_30 <- data_2020_jobsat_na_dropped[rowSums(is.na(data_2020_jobsat_na_dropped)) > 30,]
+print(dim(rows_na_over_30))
+
+rows_na_over_20 <- data_2020_jobsat_na_dropped[rowSums(is.na(data_2020_jobsat_na_dropped)) > 20,]
+print(dim(rows_na_over_20))
+
+rows_na_over_10 <- data_2020_jobsat_na_dropped[rowSums(is.na(data_2020_jobsat_na_dropped)) > 10,]
+print(dim(rows_na_over_10))
+
+rows_na_over_2 <- data_2020_jobsat_na_dropped[rowSums(is.na(data_2020_jobsat_na_dropped)) > 2,]
+print(dim(rows_na_over_2))
+```
+
+I am going to drop rows where more than 20 columns have missing data.
+
+```{r removing_missing_data_in_rows}
+temp_df <- copy(data_2020_jobsat_na_dropped)
+data_2020_cols_lots_miss_data <- temp_df[rowSums(is.na(data_2020_jobsat_na_dropped)) < 20,]
+dim(data_2020_cols_lots_miss_data)
+colSums(is.na(data_2020_cols_lots_miss_data))
+```
+
+There is still a lot of data that is missing and if I were to remove it all I'd be left with very little rows of data.
+
+I am going to assess which columns look to relate to job satisfaction and use that to help determine which missing data to remove and which to treat.
+
+Clean data thoughts:
+
+* Handle NA values
+* Rename factors in following columns
+    - MainBranch
+    - EdLevel
+    - Employment
+    - Ethincity
+    - NEWOvertime
+    - OrgSize
+    - Undergrad Major 
+    - WelcomeChange
+    ...
+* Convert following factor columns to numeric
+    - Age1stCode
+    - OvertimeHrs
+* Split columns where person can select multiple factors up 
+
+## Step 4: Plots
+
+```{r initial_missing_map, echo=FALSE}
+missmap(raw_data_2020, col=c("black", "grey"), legend=FALSE)
+```
+
+```{r missing_map, echo=FALSE}
+data_2020_initial_clean <- copy(data_2020_cols_lots_miss_data)
+missmap(data_2020_initial_clean, col=c("black", "grey"), legend=FALSE)
+```
+## Plot variance of job satisfaction
+
+```{r target_variable, echo=FALSE}
+data_2020_initial_clean$JobSat <- gsub("Neither satisfied nor dissatisfied", "Neutral", data_2020_initial_clean$JobSat)
+data_2020_initial_clean$JobSat <- gsub("Slightly satisfied", "Satisfied Slightly", data_2020_initial_clean$JobSat)
+data_2020_initial_clean$JobSat <- gsub("Slightly dissatisfied", "Dissatisfied Slightly", data_2020_initial_clean$JobSat)
+data_2020_initial_clean$JobSat <- gsub("Very satisfied", "Satisfied Very", data_2020_initial_clean$JobSat)
+data_2020_initial_clean$JobSat <- gsub("Very dissatisfied", "Dissatisfied Very", data_2020_initial_clean$JobSat)
+
+ggplot(data_2020_initial_clean) + geom_bar(aes(x = JobSat), width=0.4, position = position_dodge(width=0.5)) + theme(axis.text.x = element_text(face="plain", color="black", size=11, angle=45))
+```
+
+```{r salary-plots, echo=FALSE}
+ggplot(data_2020_initial_clean, 
+       aes(x = SalaryUSD, 
+           fill = JobSat)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Salary distribution by job satisfaction") + xlim(0, 400000)
+```
+
+```{r work-week-plot, echo=FALSE}
+ggplot(data_2020_initial_clean, 
+       aes(x = WorkWeekHrs, 
+           fill = JobSat)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Hours worked per week distribution by job satisfaction") + xlim(10, 80)
+```
+```{r years_code_pro-plot, echo=FALSE}
+data_2020_initial_clean$YearsCodePro <- as.numeric(levels(data_2020_initial_clean$YearsCodePro))[data_2020_initial_clean$YearsCodePro]
+
+ggplot(data_2020_initial_clean, 
+       aes(x = YearsCodePro, 
+           fill = JobSat)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Years coded pro distribution by job satisfaction") 
+```
+
+```{r pair-plots, echo=FALSE}
+ggplot(data_2020_initial_clean, 
+       aes(x = Age, 
+           fill = JobSat)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Age distribution by job satisfaction") + xlim(10, 75)
+```
+
+```{r age-1stcode-plots, echo=FALSE}
+data_2020_initial_clean$Age1stCode <- as.numeric(levels(data_2020_initial_clean$Age1stCode))[data_2020_initial_clean$Age1stCode]
+
+ggplot(data_2020_initial_clean, 
+       aes(x = Age1stCode, 
+           fill = JobSat)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Age 1st Code distribution by job satisfaction")
+```
+
+```{r pair-plots, echo=FALSE}
+# Ra-naming some labels for the plot
+data_2020_initial_clean$Gender <- gsub("Woman;Non-binary, genderqueer, or gender non-conforming", "Non-Conforming", data_2020_initial_clean$Gender)
+data_2020_initial_clean$Gender <- gsub("Man;Non-binary, genderqueer, or gender non-conforming", "Non-Conforming", data_2020_initial_clean$Gender)
+data_2020_initial_clean$Gender <- gsub("Woman;Man;Non-binary, genderqueer, or gender non-conforming", "Non-Conforming", data_2020_initial_clean$Gender)
+data_2020_initial_clean$Gender <- gsub("Non-binary, genderqueer, or gender non-conforming", "Non-Conforming", data_2020_initial_clean$Gender)
+data_2020_initial_clean$Gender <- gsub("Woman;Man", "Non-Conforming", data_2020_initial_clean$Gender)
+
+ggplot(data_2020_initial_clean, 
+       aes(x = Gender, 
+           fill = JobSat), width=0.4, position = position_dodge(width=0.5)) + 
+  geom_bar(position = "stack") +
+  labs(title = "Gender distribution by job satisfaction") + theme(axis.text.x = element_text(face="plain", color="black", size=8, angle=45))
+```
+
+
+```{r welcome-change-jobsat-plot, echo=FALSE}
+ggplot(data_2020_initial_clean, 
+       aes(x = WelcomeChange, 
+           fill = JobSat), width=0.4, position = position_dodge(width=0.5)) + 
+  geom_bar(position = "stack") +
+  labs(title = "Welcome Change distribution by job satisfaction") + theme(axis.text.x = element_text(face="plain", color="black", size=8, angle=45))
+```
+
+
+```{r hobby-coder-plot, echo=FALSE}
+ggplot(data_2020_initial_clean, 
+       aes(x = Hobbyist, 
+           fill = JobSat), width=0.4, position = position_dodge(width=0.5)) + 
+  geom_bar(position = "stack") +
+  labs(title = "Hobby coder by job satisfaction") + theme(axis.text.x = element_text(face="plain", color="black", size=8, angle=45))
+```
+
+```{r education-plot, echo=FALSE}
+ggplot(data_2020_initial_clean, 
+       aes(x = EdLevel, 
+           fill = JobSat), width=0.4, position = position_dodge(width=0.5)) + 
+  geom_bar(position = "stack") +
+  labs(title = "Education Level by job satisfaction") + theme(axis.text.x = element_text(face="plain", color="black", size=8, angle=45))
+```
+
+
+```{r country-jobsat-plot, echo=FALSE}
+data_2020_world_slightly_satisified <- data_2020_country_jobsat_freq[(data_2020_country_jobsat_freq$jobSat=="Satisfied Slightly"), ]
+
+world_map <- map_data("world")
+world_data_2020_map <- left_join(data_2020_world_slightly_satisified, world_map, by = "region")
+ggplot(world_data_2020_map, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill=Freq), colour = "white") + 
+    scale_fill_viridis_c(option = "C") + 
+  labs(title = "Slightly statisfied frequency per country")
+```
+```{r country-jobsat-plot, echo=FALSE}
+data_2020_world_slightly_disatisified <- data_2020_country_jobsat_freq[(data_2020_country_jobsat_freq$jobSat=="Dissatisfied Slightly"), ]
+
+world_data_2020_map_slightly_dissatisfied <- left_join(data_2020_world_slightly_disatisified, world_map, by = "region")
+ggplot(world_data_2020_map_slightly_dissatisfied, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill=Freq), colour = "white") + 
+    scale_fill_viridis_c(option = "C") + 
+  labs(title = "Slightly disstatisfied frequency per country")
+```
+
+```{r country-jobsat-plot, echo=FALSE}
+data_2020_world_very_disatisified <- data_2020_country_jobsat_freq[(data_2020_country_jobsat_freq$jobSat=="Dissatisfied Very"), ]
+
+world_data_2020_map_very_dissatisfied <- left_join(data_2020_world_very_disatisified, world_map, by = "region")
+ggplot(world_data_2020_map_very_dissatisfied, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill=Freq), colour = "white") + 
+    scale_fill_viridis_c(option = "C") + 
+  labs(title = "Very disstatisfied frequency per country")
+```
+
+```{r country-jobsat-plot, echo=FALSE}
+data_2020_world_very_satisified <- data_2020_country_jobsat_freq[(data_2020_country_jobsat_freq$jobSat=="Satisfied Very"), ]
+
+world_data_2020_map_very_satisfied <- left_join(data_2020_world_very_satisified, world_map, by = "region")
+ggplot(world_data_2020_map_very_satisfied, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill=Freq), colour = "white") + 
+    scale_fill_viridis_c(option = "C") + 
+  labs(title = "Very statisfied frequency per country")
+```
+
+```{r country-jobsat-plot, echo=FALSE}
+data_2020_world_sat_summary <- data_2020_country_jobsat_freq %>% select(region, Freq) %>% group_by(region) %>% summarise(Freq = sum(Freq))
+
+world_data_2020_map_test <- left_join(data_2020_world_sat_summary, world_map, by = "region")
+ggplot(world_data_2020_map_test, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill=Freq), colour = "white") + 
+    scale_fill_viridis_c(option = "C") + 
+  labs(title = "Frequency of response per country")
+```
+
+
+## Step 5: Important Variables
+
+Feature Selection / Filtering using mlr3 library
+
+I am going to use the filtering approach which computes a rank of the variables based on their information gain in relation to the response varaible.
+
+https://machinelearningmastery.com/information-gain-and-mutual-information/
+
+```{r rank_variables}
+filter = FilterInformationGain$new()
+
+data_task <- data_2020_initial_clean %>% mutate_if(is.character, as.factor)
+task = TaskClassif$new(id = 'devsurvey', backend = data_task, target = "JobSat")
+
+filter$calculate(task)
+
+corr_score <- as.data.table(filter)
+
+corr_score_ordered <- corr_score[order(-rank(score))][]
+
+corr_score_ordered
+```
+
+## Step 6: Build Naive Bayes Model
+
+```{r build_model}
+
+naive_bayes_learner = lrn("classif.naive_bayes", id="nb")
+
+train_set = sample(task$nrow, 0.8 * task$nrow)
+test_set = setdiff(seq_len(task$nrow), train_set)
+
+naive_bayes_learner$train(task, row_ids = train_set)
+
+print(naive_bayes_learner$model)
+
+```
+
+
+```{r test_model}
+
+prediction = naive_bayes_learner$predict(task, row_ids = test_set)
+prediction$confusion
+```
+
+```{r build_model_probs}
+
+#### Set prediction type to be probabilities
+naive_bayes_learner$predict_type = "prob"
+
+#### Refit the model
+naive_bayes_learner$train(task, row_ids = train_set)
+
+#### Predict using new model
+prediction_probs = naive_bayes_learner$predict(task, row_ids = test_set)
+```
+
+
+```{r evaluate_probs}
+
+#auc_measure = msr("classif.auc")
+#precision_measure = msr("classif.precision")
+#recall_measure = msr("classif.recall")
+accuracy = msr("classif.acc")
+
+print(prediction$score(accuracy))
+#print(prediction_probs$score(auc_measure))
+#print(prediction$score(precision_measure))
+#print(prediction$score(recall_measure))
+```
+
+## Step 6: Variable Cleaning
+
+Remove variables that meet the following criteria:
+
+ * Have missing values > 30% of the data
+ * Variables where > 95% of data is same value i.e. max frequency of unique values > 95% 
+ * Variables that are capturing same information i.e. variables that have identical values  
+ * Factors that have more than 50 unique values 
+ * Variables with variance < 1% 
+ * Variables correlation > 99% 
+
+```{r variable_selection}
+# Input: dataframe; Output: list of characters, i.e. var names
+varSelectGeneral <- function(data_all){
+        # Remove variables whose missing value is larger than 30% of the data
+        t <- colSums(is.na(data_all)) < floor(nrow(data_all) * 0.3)
+        data_all <- data_all %>% select(names(t)[t])
+
+        # Remove variables whose max frequency of unique values is higher than 95% of the data
+        t <- apply(data_all, 2, function(x) max(table(x))) < floor(nrow(data_all) * 0.95)
+        data_all <- data_all %>% select(names(t)[t])
+
+        # Remove variables whose unique non NA values are identical
+        t <- lengths(apply(data_all, 2, table)) > 1
+        data_all <- data_all %>% select(names(t)[t])
+        
+        # Remove factors with over 50 levels
+        var_class <- split(names(data_all), sapply(data_all, function(x) paste(class(x), collapse = " ")))
+        t <- apply(data_all %>% select(var_class$factor), 2, function(x) length(unique(x)) > 50)
+        data_all <- data_all %>% select(-c(names(t)[t]))
+
+        # Remove variables with low variances
+        var_class <- split(names(data_all), sapply(data_all, function(x) paste(class(x), collapse = " ")))
+        correlation <- var(data_all %>% select(var_class$numeric), use = 'complete.obs')
+        t <- apply(data_all %>% select(var_class$numeric), 2, var, na.rm = T) < 0.01
+        data_all <- data_all %>% select(-c(names(t)[t]))
+
+        # Remove variables with high correlation
+        var_class <- split(names(data_all), sapply(data_all, function(x) paste(class(x), collapse = " ")))
+        correlation <- cor(data_all %>% select(var_class$numeric), use = 'complete.obs')
+        correlation[upper.tri(correlation)] <- 0
+        diag(correlation) <- 0
+        t <- apply(correlation, 2, function(x) any(abs(x) > 0.99))
+        data_all <- data_all %>% select(-c(names(t)[t]))
+
+        return(names(data_all))
+}
+
+test_data_feature_selection <- data_2020_initial_clean %>% select(varSelectGeneral(data_2020_initial_clean))
+print(dim(test_data_feature_selection))
+summary(test_data_feature_selection)
+```
